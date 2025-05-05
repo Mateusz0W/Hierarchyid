@@ -42,7 +42,7 @@ public class HierarchyService : IHierarchyService
         return (SqlHierarchyId)result;
 
     }
-    private SqlHierarchyId findHighestChild(SqlHierarchyId parentId)
+    private SqlHierarchyId FindLastDirectChild(SqlHierarchyId parentId)
     {
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
@@ -50,11 +50,15 @@ public class HierarchyService : IHierarchyService
         var command = new SqlCommand(@"
         SELECT TOP 1 Node
         FROM HierarchyTable
-        WHERE Node.IsDescendantOf(@parentId) = 1
-        AND Node != @parentId  -- wyklucz samego siebie
-        ORDER BY Node", connection);
+        WHERE Node.GetAncestor(1) = @parentId
+        ORDER BY Node DESC", connection);
 
-        command.Parameters.AddWithValue("@parentId", parentId);
+        var param = new SqlParameter("@parentId", parentId)
+        {
+            UdtTypeName = "HierarchyId"
+        };
+
+        command.Parameters.Add(param);
         var result = command.ExecuteScalar();
         if (result == null || result == DBNull.Value)
             throw new ArgumentException($"Highest child not found with '{parentId}' not found.");
@@ -76,7 +80,7 @@ public class HierarchyService : IHierarchyService
         SqlHierarchyId? lastChildId = null;
         try
         {
-            lastChildId = findHighestChild(parentId);
+            lastChildId = FindLastDirectChild(parentId);
         }
         catch (ArgumentException)
         {
