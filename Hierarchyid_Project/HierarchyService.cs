@@ -104,4 +104,65 @@ public class HierarchyService : IHierarchyService
         command.ExecuteNonQuery();
         Console.Write("Added new node");
     }
+    public void removeSubtree(string name)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        var getNodeCommand = new SqlCommand(@"
+            SELECT Node 
+            FROM HierarchyTable 
+            WHERE Name = @name;", connection);
+
+        getNodeCommand.Parameters.AddWithValue("@name", name);
+        var nodeToDelete = getNodeCommand.ExecuteScalar();
+        if (nodeToDelete == null)
+        {
+            Console.WriteLine($"Node with name '{name}' doesnt exist.");
+            return;
+        }
+        var deleteCommand = new SqlCommand(@"
+            DELETE FROM HierarchyTable 
+            WHERE Node.IsDescendantOf(@nodeToDelete) = 1;", connection);
+
+       
+        var nodeParam = new SqlParameter("@nodeToDelete", nodeToDelete)
+        {
+            UdtTypeName = "HierarchyId"
+        };
+        deleteCommand.Parameters.Add(nodeParam);
+        int rowsAffected = deleteCommand.ExecuteNonQuery();
+        Console.WriteLine($"Deleted {rowsAffected} nodes from tree.");
+
+    }
+    public void moveSubTree(string newNodeName, string oldNodeName)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        var oldRoot = findPathWithName(oldNodeName);
+        var newRoot = findPathWithName(newNodeName);
+
+        var moveCommand = new SqlCommand(@"
+            UPDATE HierarchyTable
+            SET Node = Node.GetReparentedValue(@oldNode, @newParentNode)
+            WHERE Node.IsDescendantOf(@oldNode) = 1;", connection);
+
+        var oldNode = new SqlParameter("@oldNode", oldRoot)
+        {
+            UdtTypeName = "HierarchyId"
+        };
+        var newNode = new SqlParameter("@newParentNode", newRoot)
+        {
+            UdtTypeName = "HierarchyId"
+        };
+
+        moveCommand.Parameters.Add(oldNode);
+        moveCommand.Parameters.Add(newNode);
+
+        int rowsAffected = moveCommand.ExecuteNonQuery();
+        Console.WriteLine($"Moved {rowsAffected} nodes.");
+
+
+    }
+
+
 }
