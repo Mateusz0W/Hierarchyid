@@ -1,6 +1,7 @@
 ﻿using Microsoft.SqlServer.Types;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 
 public class HierarchyService : IHierarchyService
@@ -162,6 +163,50 @@ public class HierarchyService : IHierarchyService
         Console.WriteLine($"Moved {rowsAffected} nodes.");
 
 
+    }
+    public void readTree()
+    {
+
+    }
+    public int numberOfNodes()
+    {
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        var command = new SqlCommand(@"
+            SELECT COUNT(*) AS NodeCount FROM HierarchyTable;", connection);
+
+        var result = command.ExecuteScalar();
+        return (int)result;
+    }
+    public int numberOfLevels()
+    {
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        var command = new SqlCommand(@"
+           SELECT COUNT(DISTINCT Node.GetLevel()) AS NumberOfLevels FROM HierarchyTable;", connection);
+
+        var result = command.ExecuteScalar();
+        return (int)result;
+    }
+    public int numberOfDescendants(string parentName)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        var node = findPathWithName(parentName);
+        var command = new SqlCommand(@"
+            SELECT COUNT(*) AS DescendantCount
+            FROM HierarchyTable
+            WHERE Node.IsDescendantOf(@ParentNode) = 1
+            AND Node <> @ParentNode;", connection);
+
+        var nodeParam = new SqlParameter("@ParentNode", node)
+        {
+            UdtTypeName = "HierarchyId"
+        };
+
+        command.Parameters.Add(nodeParam);
+        var result = command.ExecuteScalar();
+        return (int)result;
     }
 
 
