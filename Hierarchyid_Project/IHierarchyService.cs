@@ -5,7 +5,7 @@
     // List<string> GetFullHierarchy();
     void removeSubtree(string name);
     void moveSubTree(string parentName, string name);
-    void readTree();
+    Dictionary<string, Person> readTree();
     int numberOfNodes();
     int numberOfLevels();
     int numberOfDescendants(string parentName);

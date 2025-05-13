@@ -2,6 +2,7 @@
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using System;
 
 
 public class HierarchyService : IHierarchyService
@@ -164,9 +165,45 @@ public class HierarchyService : IHierarchyService
 
 
     }
-    public void readTree()
+    public Dictionary<string, Person> readTree()
     {
+        Dictionary<string, Person> tree = new Dictionary<string, Person>();
+        
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+        
+        var command = new SqlCommand(@"
+            SELECT 
+             Id,
+             Name,
+             Node.ToString() AS HierarchyPath,
+             Node.GetLevel() AS Level,
+             Node.GetAncestor(1).ToString() AS ParentNode
+             FROM HierarchyTable
+             ORDER BY Node",connection);
 
+        int l = 0;
+        using (SqlDataReader reader = command.ExecuteReader()) 
+        {
+            while (reader.Read())
+            {
+                int id = reader.GetInt32(reader.GetOrdinal("Id"));
+                string name = reader.GetString(reader.GetOrdinal("Name"));
+                string path = reader.GetString(reader.GetOrdinal("HierarchyPath"));
+                int level = reader.GetInt16(reader.GetOrdinal("Level"));
+                if (l == 0)
+                    tree[path] = new Person(name, id, level);
+                else
+                {
+                    Person person = new Person(name, id, level);
+                    tree[path[..^2]].addChild(person);
+                    tree[path] = person;
+                }
+                l++;
+            }
+        }
+        Console.WriteLine($"readed tree");
+        return tree;
     }
     public int numberOfNodes()
     {
