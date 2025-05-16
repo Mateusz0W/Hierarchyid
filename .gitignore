@@ -2,4 +2,4 @@
 *.sln
 bin/
 obj/
-*.csproj
+*.csproj*
