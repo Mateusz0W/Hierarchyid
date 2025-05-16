@@ -2,7 +2,34 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Drzewo Genealogiczne" Height="600" Width="800">
-    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-        <Canvas x:Name="TreeCanvas" Background="White"/>
-    </ScrollViewer>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <!-- Panel formularza -->
+            <ColumnDefinition Width="*"/>
+            <!-- Drzewo -->
+        </Grid.ColumnDefinitions>
+
+        <!-- PANEL FORMULARZA -->
+        <StackPanel Grid.Column="0" Margin="10">
+            <TextBlock Text="Imię:" Margin="0,0,0,5"/>
+            <TextBox x:Name="NameTextBox" Margin="0,0,0,10"/>
+
+            <TextBlock Text="Nazwisko:" Margin="0,0,0,5"/>
+            <TextBox x:Name="SurnameTextBox" Margin="0,0,0,10"/>
+
+            <TextBlock Text="Data urodzenia:" Margin="0,0,0,5"/>
+            <DatePicker x:Name="BirthDatePicker" Margin="0,0,0,10"/>
+
+            <TextBlock Text="Data śmierci:" Margin="0,0,0,5"/>
+            <DatePicker x:Name="DeathDatePicker" Margin="0,0,0,10"/>
+
+            <Button Content="Dodaj osobę" Click="AddPerson_Click"/>
+        </StackPanel>
+
+        <!-- CANVAS DRZEWA -->
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <Canvas x:Name="TreeCanvas" Background="White"/>
+        </ScrollViewer>
+    </Grid>
 </Window>

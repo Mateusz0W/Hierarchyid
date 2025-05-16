@@ -22,12 +22,16 @@ namespace FamilyTreeGraph
         private const double BoxHeight = 40;
         private const double HorizontalSpacing = 30;
         private const double VerticalSpacing = 80;
+        private Person ClickedPerson;
+        private readonly HierarchyService service;
+        private Border SelectedBorder;
+
 
         public MainWindow()
         {
             InitializeComponent();
             string connectionString = "Server=.;Database=Project;TrustServerCertificate=True;Integrated Security=True;";
-            var service = new HierarchyService(connectionString);
+            service = new HierarchyService(connectionString);
             Dictionary<string,Person> tree = service.readTree();
             Person root = tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
             DrawTree(root, 0, 20, out _);
@@ -38,7 +42,7 @@ namespace FamilyTreeGraph
         {
             if (person.getChildrens().Count == 0)
             {
-                DrawPersonBox(person.getName(), x, y);
+                DrawPersonBox(person.getName(), x, y, person);
                 centerX = x + BoxWidth / 2;
                 return x + BoxWidth;
             }
@@ -54,7 +58,7 @@ namespace FamilyTreeGraph
             }
 
             centerX = (childCenters[0] + childCenters[^1]) / 2;
-            DrawPersonBox(person.getName(), centerX - BoxWidth / 2, y);
+            DrawPersonBox(person.getName(), centerX - BoxWidth / 2, y,person);
 
             // Rysowanie linii do dzieci
             foreach (var childCenter in childCenters)
@@ -65,7 +69,7 @@ namespace FamilyTreeGraph
             return currentX;
         }
 
-        private void DrawPersonBox(string name, double x, double y)
+        private void DrawPersonBox(string name, double x, double y, Person person)
         {
             Border border = new Border
             {
@@ -79,8 +83,11 @@ namespace FamilyTreeGraph
                     Text = name,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
-                }
+                },
+                Tag = person
             };
+            border.MouseLeftButtonDown += PersonBox_Click;
+
             Canvas.SetLeft(border, x);
             Canvas.SetTop(border, y);
             TreeCanvas.Children.Add(border);
@@ -99,6 +106,35 @@ namespace FamilyTreeGraph
             };
             TreeCanvas.Children.Add(line);
         }
+        private void AddPerson_Click(object sender, RoutedEventArgs e)
+        {
+            Person person = new Person(NameTextBox.Text.Trim(), SurnameTextBox.Text.Trim(), BirthDatePicker.SelectedDate,DeathDatePicker.SelectedDate);
+            this.service.AddNode(ClickedPerson, person);
+            // redraw tree
+            TreeCanvas.Children.Clear();
+            ClickedPerson = null;
+            SelectedBorder = null;
+            Dictionary<string, Person> tree = service.readTree();
+            Person root = tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
+            DrawTree(root, 0, 20, out _);
+
+        }
+        private void PersonBox_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border border && border.Tag is Person person)
+            {
+                if (SelectedBorder != null)
+                {
+                    SelectedBorder.Background = Brushes.LightYellow;
+                }
+                border.Background = Brushes.LightBlue;
+                SelectedBorder = border;
+                // Przykład działania: pokazanie danych osoby
+                this.ClickedPerson = person;
+               
+            }
+        }
+
 
     }
 }
