@@ -1,7 +1,7 @@
 ﻿public interface IHierarchyService
 {
-    void CreateRoot(string name);
-    void AddNode(string parentName, string childName);
+    void CreateRoot(string name, string surname, DateTime birthDate, DateTime? deathDate);
+    void AddNode(Person Parent,Person Child);
     // List<string> GetFullHierarchy();
     void removeSubtree(string name);
     void moveSubTree(string parentName, string name);

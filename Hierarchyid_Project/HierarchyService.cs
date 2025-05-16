@@ -15,15 +15,21 @@ public class HierarchyService : IHierarchyService
         _connectionString = connectionString;
     }
 
-    public void CreateRoot(string name)
+    public void CreateRoot(string name, string surname, DateTime birthDate, DateTime? deathDate)
     {
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
 
         var command = new SqlCommand(@"
-            INSERT INTO HierarchyTable (Name, Node)
-            VALUES (@name, hierarchyid::GetRoot())", connection);
+            INSERT INTO HierarchyTable (Name,Surname,BirthDate,DeathDate, Node)
+            VALUES (@name,@surname,@birthDate,@deathDate, hierarchyid::GetRoot())", connection);
+
         command.Parameters.AddWithValue("@name", name);
+        command.Parameters.AddWithValue("@surname", surname);
+        command.Parameters.AddWithValue("@birthDate", birthDate);
+        var deathDateParam = new SqlParameter("@deathDate", System.Data.SqlDbType.DateTime);
+        deathDateParam.Value = deathDate.HasValue ? deathDate.Value : DBNull.Value;
+        command.Parameters.Add(deathDateParam);
         command.ExecuteNonQuery();
     }
     private SqlHierarchyId findPathWithName(string name)
@@ -69,7 +75,7 @@ public class HierarchyService : IHierarchyService
 
     }
 
-    public void AddNode(string parentName, string childName)
+    public void AddNode(Person Parent, Person child)
     {
 
 
@@ -77,7 +83,7 @@ public class HierarchyService : IHierarchyService
         connection.Open();
 
         // First, get the parent node path
-        var parentId = findPathWithName(parentName);
+        var parentId = findPathWithName(Parent.getName());
 
         SqlHierarchyId? lastChildId = null;
         try
@@ -94,10 +100,15 @@ public class HierarchyService : IHierarchyService
             SqlHierarchyId.Null
         );
         var command = new SqlCommand(@"
-            INSERT INTO HierarchyTable (Name, Node)
-            VALUES (@childName, @newNodeId)", connection);
+            INSERT INTO HierarchyTable (Name,Surname,BirthDate,DeathDate, Node) 
+            VALUES (@name,@surname,@birthDate,@deathDate, @newNodeId)", connection);
 
-        command.Parameters.AddWithValue("@childName", childName);
+        command.Parameters.AddWithValue("@name", child.getName());
+        command.Parameters.AddWithValue("@surname", child.GetSurname());
+        command.Parameters.AddWithValue("@birthDate", child.GetBirthDate());
+        var deathDateParam = new SqlParameter("@deathDate", System.Data.SqlDbType.DateTime);
+        deathDateParam.Value = child.GetDeathDate().HasValue ? child.GetDeathDate().Value : DBNull.Value;
+        command.Parameters.Add(deathDateParam);
         var nodeParam = new SqlParameter("@newNodeId", newNodeId)
         {
             UdtTypeName = "HierarchyId"
