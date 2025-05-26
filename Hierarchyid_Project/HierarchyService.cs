@@ -16,7 +16,7 @@ public class HierarchyService : IHierarchyService
         _connectionString = connectionString;
     }
 
-    public void CreateRoot(string name, string surname, DateTime birthDate, DateTime? deathDate)
+    public void CreateRoot(Person person)
     {
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
@@ -25,11 +25,11 @@ public class HierarchyService : IHierarchyService
             INSERT INTO HierarchyTable (Name,Surname,BirthDate,DeathDate, Node)
             VALUES (@name,@surname,@birthDate,@deathDate, hierarchyid::GetRoot())", connection);
 
-        command.Parameters.AddWithValue("@name", name);
-        command.Parameters.AddWithValue("@surname", surname);
-        command.Parameters.AddWithValue("@birthDate", birthDate);
+        command.Parameters.AddWithValue("@name", person.getName());
+        command.Parameters.AddWithValue("@surname", person.GetSurname());
+        command.Parameters.AddWithValue("@birthDate",person.GetBirthDate());
         var deathDateParam = new SqlParameter("@deathDate", System.Data.SqlDbType.DateTime);
-        deathDateParam.Value = deathDate.HasValue ? deathDate.Value : DBNull.Value;
+        deathDateParam.Value = person.GetDeathDate().HasValue ? person.GetDeathDate().Value : DBNull.Value;
         command.Parameters.Add(deathDateParam);
         command.ExecuteNonQuery();
     }
@@ -181,24 +181,80 @@ public class HierarchyService : IHierarchyService
 
         }
 
-        var updateCommand = new SqlCommand(@"
-        UPDATE HierarchyTable
-        SET Node = Node.GetReparentedValue(@nodeToDelete, @parentNode)
+        var getChildrenCommand = new SqlCommand(@"
+        SELECT Id, Node
+        FROM HierarchyTable
         WHERE Node.IsDescendantOf(@nodeToDelete) = 1
-        AND Node <> @nodeToDelete;",
-            connection);
+        AND Node <> @nodeToDelete
+        ORDER BY Node.GetLevel()", connection);
 
-        updateCommand.Parameters.Add("@nodeToDelete", SqlDbType.Udt).Value = nodeToDelete;
-        updateCommand.Parameters["@nodeToDelete"].UdtTypeName = "HIERARCHYID";
+        getChildrenCommand.Parameters.Add("@nodeToDelete", SqlDbType.Udt).Value = nodeToDelete;
+        getChildrenCommand.Parameters["@nodeToDelete"].UdtTypeName = "HIERARCHYID";
 
-        updateCommand.Parameters.Add("@parentNode", SqlDbType.Udt).Value = parentNode;
-        updateCommand.Parameters["@parentNode"].UdtTypeName = "HIERARCHYID";
-        updateCommand.ExecuteNonQuery();
+        var children = new List<(int Id, SqlHierarchyId OldNode)>();
 
+        using (var reader = getChildrenCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                int id = reader.GetInt32(0);
+                var oldNode = (SqlHierarchyId)reader["Node"];
+                children.Add((id, oldNode));
+            }
+        }
+
+        // 3. Dla każdego dziecka: wygeneruj unikalną ścieżkę i zaktualizuj
+        foreach (var (id, oldNode) in children)
+        {
+            // Pobierz ostatnie dziecko parentNode, żeby wygenerować nową ścieżkę
+            var getLastChildCmd = new SqlCommand(@"
+            SELECT MAX(Node) 
+            FROM HierarchyTable 
+            WHERE Node.GetAncestor(1) = @parentNode", connection);
+
+            getLastChildCmd.Parameters.Add("@parentNode", SqlDbType.Udt).Value = parentNode;
+            getLastChildCmd.Parameters["@parentNode"].UdtTypeName = "HIERARCHYID";
+
+            object result = getLastChildCmd.ExecuteScalar();
+            SqlHierarchyId lastChild = (result == DBNull.Value)? SqlHierarchyId.Null: (SqlHierarchyId)result;
+
+
+            var getDescendantCmd = new SqlCommand(@"
+            SELECT @parentNode.GetDescendant(@lastChild, NULL)", connection);
+
+            getDescendantCmd.Parameters.Add("@parentNode", SqlDbType.Udt).Value = parentNode;
+            getDescendantCmd.Parameters["@parentNode"].UdtTypeName = "HIERARCHYID";
+
+            var lastChildParam = getDescendantCmd.Parameters.Add("@lastChild", SqlDbType.Udt);
+            lastChildParam.UdtTypeName = "HIERARCHYID";
+            lastChildParam.Value = (object?)lastChild ?? DBNull.Value;
+
+            SqlHierarchyId newNode;
+            using (var reader = getDescendantCmd.ExecuteReader())
+            {
+                if (!reader.Read())
+                    throw new Exception("Failed to generate new hierarchy ID");
+
+                newNode = (SqlHierarchyId)reader[0];
+            }
+
+            // Zaktualizuj Node w bazie
+            var updateChildCmd = new SqlCommand(@"
+            UPDATE HierarchyTable
+            SET Node = @newNode
+            WHERE Id = @id", connection);
+
+            updateChildCmd.Parameters.AddWithValue("@id", id);
+            updateChildCmd.Parameters.Add("@newNode", SqlDbType.Udt).Value = newNode;
+            updateChildCmd.Parameters["@newNode"].UdtTypeName = "HIERARCHYID";
+
+            updateChildCmd.ExecuteNonQuery();
+        }
+
+        // 4. Usuń główny node
         var deleteCommand = new SqlCommand(@"
         DELETE FROM HierarchyTable
-        WHERE Node = @nodeToDelete;",
-            connection);
+        WHERE Node = @nodeToDelete;", connection);
 
         var deleteParam = deleteCommand.Parameters.Add("@nodeToDelete", SqlDbType.Udt);
         deleteParam.Value = nodeToDelete;
@@ -206,35 +262,87 @@ public class HierarchyService : IHierarchyService
         deleteCommand.ExecuteNonQuery();
     }
 
-    public void moveSubTree(string newNodeName, string oldNodeName)
+    public void MoveSubTree(string newNodeName, string oldNodeName)
     {
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
+
         var oldRoot = findPathWithName(oldNodeName);
         var newRoot = findPathWithName(newNodeName);
 
-        var moveCommand = new SqlCommand(@"
+        // Pobierz ID i Node wszystkich potomków (w tym również korzeń starego poddrzewa)
+        var getDescendantsCommand = new SqlCommand(@"
+        SELECT Id, Node
+        FROM HierarchyTable
+        WHERE Node.IsDescendantOf(@oldNode) = 1
+        ORDER BY Node.GetLevel()", connection);
+
+        getDescendantsCommand.Parameters.Add("@oldNode", SqlDbType.Udt).Value = oldRoot;
+        getDescendantsCommand.Parameters["@oldNode"].UdtTypeName = "HIERARCHYID";
+
+        var descendants = new List<(int Id, SqlHierarchyId OldNode)>();
+
+        using (var reader = getDescendantsCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                int id = reader.GetInt32(0);
+                var node = (SqlHierarchyId)reader["Node"];
+                descendants.Add((id, node));
+            }
+        }
+
+        // Reparentuj każdego potomka
+        foreach (var (id, oldNode) in descendants)
+        {
+            // Oblicz nowego rodzica przez GetReparentedValue
+            var getNewNodeCommand = new SqlCommand(@"
+            SELECT @oldNode.GetReparentedValue(@oldRoot, @newRoot)", connection);
+
+            getNewNodeCommand.Parameters.Add("@oldNode", SqlDbType.Udt).Value = oldNode;
+            getNewNodeCommand.Parameters["@oldNode"].UdtTypeName = "HIERARCHYID";
+
+            getNewNodeCommand.Parameters.Add("@oldRoot", SqlDbType.Udt).Value = oldRoot;
+            getNewNodeCommand.Parameters["@oldRoot"].UdtTypeName = "HIERARCHYID";
+
+            getNewNodeCommand.Parameters.Add("@newRoot", SqlDbType.Udt).Value = newRoot;
+            getNewNodeCommand.Parameters["@newRoot"].UdtTypeName = "HIERARCHYID";
+
+            SqlHierarchyId newNode;
+            using (var reader = getNewNodeCommand.ExecuteReader())
+            {
+                if (!reader.Read())
+                    throw new Exception("Failed to reparent node");
+
+                newNode = (SqlHierarchyId)reader[0];
+            }
+
+            // Sprawdź, czy ścieżka już istnieje (aby uniknąć kolizji)
+            var checkExists = new SqlCommand(@"
+            SELECT COUNT(*) FROM HierarchyTable WHERE Node = @newNode", connection);
+            checkExists.Parameters.Add("@newNode", SqlDbType.Udt).Value = newNode;
+            checkExists.Parameters["@newNode"].UdtTypeName = "HIERARCHYID";
+
+            int exists = (int)checkExists.ExecuteScalar();
+            if (exists > 0)
+                throw new InvalidOperationException("Conflict: target node path already exists");
+
+            // Zaktualizuj ścieżkę potomka
+            var updateNodeCommand = new SqlCommand(@"
             UPDATE HierarchyTable
-            SET Node = Node.GetReparentedValue(@oldNode, @newParentNode)
-            WHERE Node.IsDescendantOf(@oldNode) = 1;", connection);
+            SET Node = @newNode
+            WHERE Id = @id", connection);
 
-        var oldNode = new SqlParameter("@oldNode", oldRoot)
-        {
-            UdtTypeName = "HierarchyId"
-        };
-        var newNode = new SqlParameter("@newParentNode", newRoot)
-        {
-            UdtTypeName = "HierarchyId"
-        };
+            updateNodeCommand.Parameters.AddWithValue("@id", id);
+            updateNodeCommand.Parameters.Add("@newNode", SqlDbType.Udt).Value = newNode;
+            updateNodeCommand.Parameters["@newNode"].UdtTypeName = "HIERARCHYID";
 
-        moveCommand.Parameters.Add(oldNode);
-        moveCommand.Parameters.Add(newNode);
+            updateNodeCommand.ExecuteNonQuery();
+        }
 
-        int rowsAffected = moveCommand.ExecuteNonQuery();
-        Console.WriteLine($"Moved {rowsAffected} nodes.");
-
-
+        Console.WriteLine($"Moved {descendants.Count} nodes.");
     }
+
     public Dictionary<string, Person> readTree()
     {
         Dictionary<string, Person> tree = new Dictionary<string, Person>();
