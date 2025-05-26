@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System;
+using System.Data;
 
 
 public class HierarchyService : IHierarchyService
@@ -117,7 +118,7 @@ public class HierarchyService : IHierarchyService
         command.ExecuteNonQuery();
         Console.Write("Added new node");
     }
-    public void removeSubtree(string name)
+    public void removeSubtree(Person person)
     {
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
@@ -126,11 +127,11 @@ public class HierarchyService : IHierarchyService
             FROM HierarchyTable 
             WHERE Name = @name;", connection);
 
-        getNodeCommand.Parameters.AddWithValue("@name", name);
+        getNodeCommand.Parameters.AddWithValue("@name", person.getName());
         var nodeToDelete = getNodeCommand.ExecuteScalar();
         if (nodeToDelete == null)
         {
-            Console.WriteLine($"Node with name '{name}' doesnt exist.");
+            Console.WriteLine($"Node with name '{person.getName()}' doesnt exist.");
             return;
         }
         var deleteCommand = new SqlCommand(@"
@@ -147,6 +148,64 @@ public class HierarchyService : IHierarchyService
         Console.WriteLine($"Deleted {rowsAffected} nodes from tree.");
 
     }
+    public void RemoveNode(Person person)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        connection.Open();
+
+        var getNodesCommand = new SqlCommand(@"
+        DECLARE @nodeToDelete hierarchyid;
+        DECLARE @parentNode hierarchyid;
+
+        SELECT @nodeToDelete = Node, @parentNode = Node.GetAncestor(1)
+        FROM HierarchyTable 
+        WHERE Name = @name;
+
+        SELECT @nodeToDelete AS NodeToDelete, @parentNode AS ParentNode;",
+            connection);
+
+        getNodesCommand.Parameters.AddWithValue("@name", person.getName());
+
+        SqlHierarchyId nodeToDelete;
+        SqlHierarchyId parentNode;
+
+        using (var reader = getNodesCommand.ExecuteReader())
+        {
+            if (!reader.Read())
+            {
+                throw new InvalidOperationException("Person not found in hierarchy");
+            }
+
+            nodeToDelete = (SqlHierarchyId)reader["NodeToDelete"];
+            parentNode = (SqlHierarchyId)reader["ParentNode"];
+
+        }
+
+        var updateCommand = new SqlCommand(@"
+        UPDATE HierarchyTable
+        SET Node = Node.GetReparentedValue(@nodeToDelete, @parentNode)
+        WHERE Node.IsDescendantOf(@nodeToDelete) = 1
+        AND Node <> @nodeToDelete;",
+            connection);
+
+        updateCommand.Parameters.Add("@nodeToDelete", SqlDbType.Udt).Value = nodeToDelete;
+        updateCommand.Parameters["@nodeToDelete"].UdtTypeName = "HIERARCHYID";
+
+        updateCommand.Parameters.Add("@parentNode", SqlDbType.Udt).Value = parentNode;
+        updateCommand.Parameters["@parentNode"].UdtTypeName = "HIERARCHYID";
+        updateCommand.ExecuteNonQuery();
+
+        var deleteCommand = new SqlCommand(@"
+        DELETE FROM HierarchyTable
+        WHERE Node = @nodeToDelete;",
+            connection);
+
+        var deleteParam = deleteCommand.Parameters.Add("@nodeToDelete", SqlDbType.Udt);
+        deleteParam.Value = nodeToDelete;
+        deleteParam.UdtTypeName = "HIERARCHYID";
+        deleteCommand.ExecuteNonQuery();
+    }
+
     public void moveSubTree(string newNodeName, string oldNodeName)
     {
         using var connection = new SqlConnection(_connectionString);
@@ -187,6 +246,9 @@ public class HierarchyService : IHierarchyService
             SELECT 
              Id,
              Name,
+             Surname,
+             BirthDate,
+             DeathDate,
              Node.ToString() AS HierarchyPath,
              Node.GetLevel() AS Level,
              Node.GetAncestor(1).ToString() AS ParentNode
@@ -199,14 +261,21 @@ public class HierarchyService : IHierarchyService
             while (reader.Read())
             {
                 int id = reader.GetInt32(reader.GetOrdinal("Id"));
-                string name = reader.GetString(reader.GetOrdinal("Name"));
+                string Name = reader.GetString(reader.GetOrdinal("Name"));
+                string Surname = reader.GetString(reader.GetOrdinal("Surname"));
+                DateTime? BirthDate = reader.GetDateTime(reader.GetOrdinal("BirthDate"));
+                DateTime? deathDate = null;
+                if (!reader.IsDBNull(reader.GetOrdinal("DeathDate")))
+                {
+                    deathDate = reader.GetDateTime(reader.GetOrdinal("DeathDate"));
+                }
                 string path = reader.GetString(reader.GetOrdinal("HierarchyPath"));
                 int level = reader.GetInt16(reader.GetOrdinal("Level"));
                 if (l == 0)
-                    tree[path] = new Person(name, id, level);
+                    tree[path] = new Person(Name,Surname,BirthDate,deathDate, id, level);
                 else
                 {
-                    Person person = new Person(name, id, level);
+                    Person person = new Person(Name, Surname, BirthDate, deathDate, id, level);
                     tree[path[..^2]].addChild(person);
                     tree[path] = person;
                 }

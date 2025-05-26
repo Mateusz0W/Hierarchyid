@@ -28,6 +28,15 @@ public class Person
         this.birthDate = BirthDate;
         this.deathDate = DeathDate;
     }
+    public Person(string Name, string Surname, DateTime? BirthDate, DateTime? DeathDate, int id, int level)
+    {
+        this.name = Name;
+        this.surname = Surname;
+        this.birthDate = BirthDate;
+        this.deathDate = DeathDate;
+        this.id = id;
+        this.level = level;
+    }
     public override string ToString()
     {
         return name;
