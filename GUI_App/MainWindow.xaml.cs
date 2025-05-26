@@ -32,9 +32,12 @@ namespace FamilyTreeGraph
             InitializeComponent();
             string connectionString = "Server=.;Database=Project;TrustServerCertificate=True;Integrated Security=True;";
             service = new HierarchyService(connectionString);
-            Dictionary<string,Person> tree = service.readTree();
-            Person root = tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
-            DrawTree(root, 0, 20, out _);
+            Dictionary<string, Person> tree = service.readTree();
+            if (tree.Any())
+            {
+                Person root = tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
+                DrawTree(root, 0, 20, out _);
+            }
         }
 
         // Rekursyjne rysowanie drzewa
@@ -58,7 +61,7 @@ namespace FamilyTreeGraph
             }
 
             centerX = (childCenters[0] + childCenters[^1]) / 2;
-            DrawPersonBox(person.getName(), centerX - BoxWidth / 2, y,person);
+            DrawPersonBox(person.getName(), centerX - BoxWidth / 2, y, person);
 
             // Rysowanie linii do dzieci
             foreach (var childCenter in childCenters)
@@ -109,16 +112,19 @@ namespace FamilyTreeGraph
         }
         private void AddPerson_Click(object sender, RoutedEventArgs e)
         {
+            if (string.IsNullOrEmpty(NameTextBox.Text) || string.IsNullOrEmpty(SurnameTextBox.Text) || BirthDatePicker.SelectedDate == null || ClickedPerson == null)
+            {
+                MessageBox.Show("Nie wszystkie pola  zostały wypełnione lub  nie zaznaczono rodzica.\nNie można dodać osoby!");
+                return;
+            }
             Person person = new Person(NameTextBox.Text.Trim(), SurnameTextBox.Text.Trim(), BirthDatePicker.SelectedDate,DeathDatePicker.SelectedDate);
-            this.service.AddNode(ClickedPerson, person);
-            // redraw tree
-            TreeCanvas.Children.Clear();
-            ClickedPerson = null;
-            SelectedBorder = null;
             Dictionary<string, Person> tree = service.readTree();
-            Person root = tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
-            DrawTree(root, 0, 20, out _);
-
+            if (tree.Count == 0)
+                this.service.CreateRoot(person);
+            else
+                this.service.AddNode(ClickedPerson, person);
+            // redraw tree
+            RefreshTree();
         }
         private void PersonBox_Click(object sender, MouseButtonEventArgs e)
         {
@@ -137,11 +143,20 @@ namespace FamilyTreeGraph
         }
         private void DeleteSubtree_Click(object sender, RoutedEventArgs e)
         {
+            if (ClickedPerson == null) {
+                MessageBox.Show("Nie wybrano poddrzewa do usunięca.\n Nie można usunąć poddrzewa!");
+                return;
+            }
             this.service.removeSubtree(ClickedPerson);
             RefreshTree();
         }
         private void DeletePerson_Click(object sender, RoutedEventArgs e)
         {
+            if (ClickedPerson == null)
+            {
+                MessageBox.Show("Nie wybrano węzła do usunięca.\n Nie można usunąć węzła!");
+                return;
+            }
             this.service.RemoveNode(ClickedPerson);
             RefreshTree();
         }
@@ -153,6 +168,12 @@ namespace FamilyTreeGraph
             Dictionary<string, Person> tree = service.readTree();
             Person root = tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
             DrawTree(root, 0, 20, out _);
+        }
+        private void MovePerson_Click(object sender, RoutedEventArgs e)
+        {
+            Person person = new Person(NameTextBox.Text.Trim(), SurnameTextBox.Text.Trim());
+            this.service.MoveSubTree( NameTextBox.Text.Trim(), ClickedPerson.getName());
+            RefreshTree();
         }
 
 

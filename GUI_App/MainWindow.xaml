@@ -27,6 +27,7 @@
             <Button Content="Dodaj osobę" Click="AddPerson_Click"/>
             <Button Content="Usuń poddrzewo" Click="DeleteSubtree_Click"/>
             <Button Content="Usuń osobę" Click="DeletePerson_Click"/>
+            <Button Content="Przenieś osobę" Click="MovePerson_Click"/>
         </StackPanel>
 
         <!-- CANVAS DRZEWA -->
