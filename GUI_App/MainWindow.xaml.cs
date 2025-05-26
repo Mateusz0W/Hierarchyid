@@ -18,8 +18,8 @@ namespace FamilyTreeGraph
 {
     public partial class MainWindow : Window
     {
-        private const double BoxWidth = 80;
-        private const double BoxHeight = 40;
+        private const double BoxWidth = 100;
+        private const double BoxHeight = 60;
         private const double HorizontalSpacing = 30;
         private const double VerticalSpacing = 80;
         private Person ClickedPerson;
@@ -80,9 +80,10 @@ namespace FamilyTreeGraph
                 Background = Brushes.LightYellow,
                 Child = new TextBlock
                 {
-                    Text = name,
+                    Text = $"{person.getName()} {person.GetSurname()} \n ur. {person.GetBirthDate()?.ToShortDateString()}\nsr. {person.GetDeathDate()?.ToShortDateString()}",
                     HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    //TextWrapping = TextWrapping.Wrap
                 },
                 Tag = person
             };
@@ -133,6 +134,25 @@ namespace FamilyTreeGraph
                 this.ClickedPerson = person;
                
             }
+        }
+        private void DeleteSubtree_Click(object sender, RoutedEventArgs e)
+        {
+            this.service.removeSubtree(ClickedPerson);
+            RefreshTree();
+        }
+        private void DeletePerson_Click(object sender, RoutedEventArgs e)
+        {
+            this.service.RemoveNode(ClickedPerson);
+            RefreshTree();
+        }
+        private void RefreshTree()
+        {
+            TreeCanvas.Children.Clear();
+            ClickedPerson = null;
+            SelectedBorder = null;
+            Dictionary<string, Person> tree = service.readTree();
+            Person root = tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
+            DrawTree(root, 0, 20, out _);
         }
 
 
