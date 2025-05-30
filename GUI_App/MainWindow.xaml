@@ -27,7 +27,15 @@
             <Button Content="Dodaj osobę" Click="AddPerson_Click"/>
             <Button Content="Usuń poddrzewo" Click="DeleteSubtree_Click"/>
             <Button Content="Usuń osobę" Click="DeletePerson_Click"/>
-            <Button Content="Przenieś osobę" Click="MovePerson_Click"/>
+            <Button Content="Przenieś Poddrzewo" Click="MovePerson_Click"/>
+
+            <TextBlock Text="Liczba węzłów:" FontWeight="Bold" Margin="0,20,0,5"/>
+            <TextBlock x:Name="NumOfNodes" Text="(brak)" TextWrapping="Wrap"/>
+            <TextBlock Text="Liczba poziomów:" FontWeight="Bold" Margin="0,20,0,5"/>
+            <TextBlock x:Name="NumOfLevels" Text="(brak)" TextWrapping="Wrap"/>
+            <TextBlock Text="Liczba Potomków:" FontWeight="Bold" Margin="0,20,0,5"/>
+            <TextBlock x:Name="NumOfDescendants" Text="(brak)" TextWrapping="Wrap"/>
+
         </StackPanel>
 
         <!-- CANVAS DRZEWA -->

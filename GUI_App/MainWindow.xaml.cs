@@ -43,6 +43,9 @@ namespace FamilyTreeGraph
         // Rekursyjne rysowanie drzewa
         private double DrawTree(Person person, double x, double y, out double centerX)
         {
+            NumOfNodes.Text = $"{this.service.numberOfNodes()}";
+            NumOfLevels.Text = $"{this.service.numberOfLevels()}";
+
             if (person.getChildrens().Count == 0)
             {
                 DrawPersonBox(person.getName(), x, y, person);
@@ -138,7 +141,8 @@ namespace FamilyTreeGraph
                 SelectedBorder = border;
                 // Przykład działania: pokazanie danych osoby
                 this.ClickedPerson = person;
-               
+                NumOfDescendants.Text = $"{this.service.numberOfDescendants(ClickedPerson.getName())}";
+
             }
         }
         private void DeleteSubtree_Click(object sender, RoutedEventArgs e)
@@ -175,7 +179,5 @@ namespace FamilyTreeGraph
             this.service.MoveSubTree( NameTextBox.Text.Trim(), ClickedPerson.getName());
             RefreshTree();
         }
-
-
     }
 }
