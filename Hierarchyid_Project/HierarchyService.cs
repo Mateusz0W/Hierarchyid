@@ -267,81 +267,27 @@ public class HierarchyService : IHierarchyService
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
 
-        var oldRoot = findPathWithName(oldNodeName);
-        var newRoot = findPathWithName(newNodeName);
+        var command = new SqlCommand(@"
+        DECLARE @oldRoot hierarchyid, @newParent hierarchyid, @newRoot hierarchyid, @lastChild hierarchyid;
+        SELECT @oldRoot = Node FROM HierarchyTable WHERE Name = @OldName;
+        SELECT @newParent = Node FROM HierarchyTable WHERE Name = @NewName;
 
-        // Pobierz ID i Node wszystkich potomków (w tym również korzeń starego poddrzewa)
-        var getDescendantsCommand = new SqlCommand(@"
-        SELECT Id, Node
+        SELECT @lastChild = MAX(Node)
         FROM HierarchyTable
-        WHERE Node.IsDescendantOf(@oldNode) = 1
-        ORDER BY Node.GetLevel()", connection);
+        WHERE Node.GetAncestor(1) = @newParent;
+        SET @newRoot = @newParent.GetDescendant(@lastChild, NULL);
 
-        getDescendantsCommand.Parameters.Add("@oldNode", SqlDbType.Udt).Value = oldRoot;
-        getDescendantsCommand.Parameters["@oldNode"].UdtTypeName = "HIERARCHYID";
+        UPDATE HierarchyTable
+        SET Node = Node.GetReparentedValue(@oldRoot, @newRoot)
+        WHERE Node.IsDescendantOf(@oldRoot) = 1;
+    ", connection);
 
-        var descendants = new List<(int Id, SqlHierarchyId OldNode)>();
+        command.Parameters.AddWithValue("@OldName", oldNodeName);
+        command.Parameters.AddWithValue("@NewName", newNodeName);
 
-        using (var reader = getDescendantsCommand.ExecuteReader())
-        {
-            while (reader.Read())
-            {
-                int id = reader.GetInt32(0);
-                var node = (SqlHierarchyId)reader["Node"];
-                descendants.Add((id, node));
-            }
-        }
-
-        // Reparentuj każdego potomka
-        foreach (var (id, oldNode) in descendants)
-        {
-            // Oblicz nowego rodzica przez GetReparentedValue
-            var getNewNodeCommand = new SqlCommand(@"
-            SELECT @oldNode.GetReparentedValue(@oldRoot, @newRoot)", connection);
-
-            getNewNodeCommand.Parameters.Add("@oldNode", SqlDbType.Udt).Value = oldNode;
-            getNewNodeCommand.Parameters["@oldNode"].UdtTypeName = "HIERARCHYID";
-
-            getNewNodeCommand.Parameters.Add("@oldRoot", SqlDbType.Udt).Value = oldRoot;
-            getNewNodeCommand.Parameters["@oldRoot"].UdtTypeName = "HIERARCHYID";
-
-            getNewNodeCommand.Parameters.Add("@newRoot", SqlDbType.Udt).Value = newRoot;
-            getNewNodeCommand.Parameters["@newRoot"].UdtTypeName = "HIERARCHYID";
-
-            SqlHierarchyId newNode;
-            using (var reader = getNewNodeCommand.ExecuteReader())
-            {
-                if (!reader.Read())
-                    throw new Exception("Failed to reparent node");
-
-                newNode = (SqlHierarchyId)reader[0];
-            }
-
-            // Sprawdź, czy ścieżka już istnieje (aby uniknąć kolizji)
-            var checkExists = new SqlCommand(@"
-            SELECT COUNT(*) FROM HierarchyTable WHERE Node = @newNode", connection);
-            checkExists.Parameters.Add("@newNode", SqlDbType.Udt).Value = newNode;
-            checkExists.Parameters["@newNode"].UdtTypeName = "HIERARCHYID";
-
-            int exists = (int)checkExists.ExecuteScalar();
-            if (exists > 0)
-                throw new InvalidOperationException("Conflict: target node path already exists");
-
-            // Zaktualizuj ścieżkę potomka
-            var updateNodeCommand = new SqlCommand(@"
-            UPDATE HierarchyTable
-            SET Node = @newNode
-            WHERE Id = @id", connection);
-
-            updateNodeCommand.Parameters.AddWithValue("@id", id);
-            updateNodeCommand.Parameters.Add("@newNode", SqlDbType.Udt).Value = newNode;
-            updateNodeCommand.Parameters["@newNode"].UdtTypeName = "HIERARCHYID";
-
-            updateNodeCommand.ExecuteNonQuery();
-        }
-
-        Console.WriteLine($"Moved {descendants.Count} nodes.");
+        command.ExecuteNonQuery();
     }
+
 
     public Dictionary<string, Person> readTree()
     {
