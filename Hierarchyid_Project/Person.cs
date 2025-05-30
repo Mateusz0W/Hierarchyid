@@ -16,10 +16,9 @@ public class Person
     {
         childrens.Add(child);
     }
-    public Person(string name,int id,int level ) {
+    public Person(string name,string surname) {
         this.name = name;
-        this.id = id;
-        this.level = level;
+        this.surname = surname;
     }
     public Person(string Name,string Surname,DateTime? BirthDate,DateTime? DeathDate)
     {
