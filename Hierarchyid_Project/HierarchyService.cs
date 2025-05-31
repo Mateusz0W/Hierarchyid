@@ -33,20 +33,20 @@ public class HierarchyService : IHierarchyService
         command.Parameters.Add(deathDateParam);
         command.ExecuteNonQuery();
     }
-    private SqlHierarchyId findPathWithName(string name)
+    private SqlHierarchyId findPathWithId(int id)
     {
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
 
         var getIdCommand = new SqlCommand(@"SELECT Node
             FROM HierarchyTable 
-            WHERE Name = @name", connection);
+            WHERE Id = @id", connection);
 
-        getIdCommand.Parameters.AddWithValue("@name", name);
+        getIdCommand.Parameters.AddWithValue("@id", id);
         var result = getIdCommand.ExecuteScalar();
 
         if (result == null || result == DBNull.Value)
-            throw new ArgumentException($"Node with name '{name}' not found.");
+            throw new ArgumentException($"Node with id '{id}' not found.");
 
         return (SqlHierarchyId)result;
 
@@ -84,7 +84,7 @@ public class HierarchyService : IHierarchyService
         connection.Open();
 
         // First, get the parent node path
-        var parentId = findPathWithName(Parent.getName());
+        var parentId = findPathWithId(Parent.GetID());
 
         SqlHierarchyId? lastChildId = null;
         try
@@ -125,13 +125,13 @@ public class HierarchyService : IHierarchyService
         var getNodeCommand = new SqlCommand(@"
             SELECT Node 
             FROM HierarchyTable 
-            WHERE Name = @name;", connection);
+            WHERE Id = @id;", connection);
 
-        getNodeCommand.Parameters.AddWithValue("@name", person.getName());
+        getNodeCommand.Parameters.AddWithValue("@id", person.GetID());
         var nodeToDelete = getNodeCommand.ExecuteScalar();
         if (nodeToDelete == null)
         {
-            Console.WriteLine($"Node with name '{person.getName()}' doesnt exist.");
+            Console.WriteLine($"Node with id '{person.GetID()}' doesnt exist.");
             return;
         }
         var deleteCommand = new SqlCommand(@"
@@ -159,12 +159,12 @@ public class HierarchyService : IHierarchyService
 
         SELECT @nodeToDelete = Node, @parentNode = Node.GetAncestor(1)
         FROM HierarchyTable 
-        WHERE Name = @name;
+        WHERE Id = @id;
 
         SELECT @nodeToDelete AS NodeToDelete, @parentNode AS ParentNode;",
             connection);
 
-        getNodesCommand.Parameters.AddWithValue("@name", person.getName());
+        getNodesCommand.Parameters.AddWithValue("@id", person.GetID());
 
         SqlHierarchyId nodeToDelete;
         SqlHierarchyId parentNode;
@@ -262,15 +262,15 @@ public class HierarchyService : IHierarchyService
         deleteCommand.ExecuteNonQuery();
     }
 
-    public void MoveSubTree(string newNodeName, string oldNodeName)
+    public void MoveSubTree(int newNodeId, int oldNodeId)
     {
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
 
         var command = new SqlCommand(@"
         DECLARE @oldRoot hierarchyid, @newParent hierarchyid, @newRoot hierarchyid, @lastChild hierarchyid;
-        SELECT @oldRoot = Node FROM HierarchyTable WHERE Name = @OldName;
-        SELECT @newParent = Node FROM HierarchyTable WHERE Name = @NewName;
+        SELECT @oldRoot = Node FROM HierarchyTable WHERE Id = @OldId;
+        SELECT @newParent = Node FROM HierarchyTable WHERE Id = @NewId;
 
         SELECT @lastChild = MAX(Node)
         FROM HierarchyTable
@@ -282,8 +282,8 @@ public class HierarchyService : IHierarchyService
         WHERE Node.IsDescendantOf(@oldRoot) = 1;
     ", connection);
 
-        command.Parameters.AddWithValue("@OldName", oldNodeName);
-        command.Parameters.AddWithValue("@NewName", newNodeName);
+        command.Parameters.AddWithValue("@OldId", oldNodeId);
+        command.Parameters.AddWithValue("@NewId", newNodeId);
 
         command.ExecuteNonQuery();
     }
@@ -359,11 +359,11 @@ public class HierarchyService : IHierarchyService
         var result = command.ExecuteScalar();
         return (int)result;
     }
-    public int numberOfDescendants(string parentName)
+    public int numberOfDescendants(int id)
     {
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
-        var node = findPathWithName(parentName);
+        var node = findPathWithId(id);
         var command = new SqlCommand(@"
             SELECT COUNT(*) AS DescendantCount
             FROM HierarchyTable
