@@ -60,6 +60,10 @@ public class Person
     {
         return deathDate;
     }
+    public int GetID()
+    {
+        return id;
+    }
 }
 
 
