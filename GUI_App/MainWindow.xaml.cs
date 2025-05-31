@@ -23,6 +23,7 @@ namespace FamilyTreeGraph
         private const double HorizontalSpacing = 30;
         private const double VerticalSpacing = 80;
         private Person ClickedPerson;
+        private Person RightClickedPerson;
         private readonly HierarchyService service;
         private Border SelectedBorder;
 
@@ -93,7 +94,7 @@ namespace FamilyTreeGraph
                 },
                 Tag = person
             };
-            border.MouseLeftButtonDown += PersonBox_Click;
+            border.MouseDown += PersonBox_Click;
 
             Canvas.SetLeft(border, x);
             Canvas.SetTop(border, y);
@@ -133,16 +134,28 @@ namespace FamilyTreeGraph
         {
             if (sender is Border border && border.Tag is Person person)
             {
-                if (SelectedBorder != null)
+                if (e.ChangedButton == MouseButton.Left)
                 {
-                    SelectedBorder.Background = Brushes.LightYellow;
+                    if (SelectedBorder != null)
+                    {
+                        SelectedBorder.Background = Brushes.LightYellow;
+                    }
+                    border.Background = Brushes.LightBlue;
+                    SelectedBorder = border;
+                    // Przykład działania: pokazanie danych osoby
+                    this.ClickedPerson = person;
+                    NumOfDescendants.Text = $"{this.service.numberOfDescendants(ClickedPerson.GetID())}";
                 }
-                border.Background = Brushes.LightBlue;
-                SelectedBorder = border;
-                // Przykład działania: pokazanie danych osoby
-                this.ClickedPerson = person;
-                NumOfDescendants.Text = $"{this.service.numberOfDescendants(ClickedPerson.getName())}";
-
+                else if (e.ChangedButton == MouseButton.Right)
+                {
+                    if (SelectedBorder != null)
+                    {
+                        SelectedBorder.Background = Brushes.LightYellow;
+                    }
+                    border.Background = Brushes.LightGreen;
+                    SelectedBorder = border;
+                    this.RightClickedPerson = person;
+                }
             }
         }
         private void DeleteSubtree_Click(object sender, RoutedEventArgs e)
@@ -175,8 +188,12 @@ namespace FamilyTreeGraph
         }
         private void MovePerson_Click(object sender, RoutedEventArgs e)
         {
-            Person person = new Person(NameTextBox.Text.Trim(), SurnameTextBox.Text.Trim());
-            this.service.MoveSubTree( NameTextBox.Text.Trim(), ClickedPerson.getName());
+            if (RightClickedPerson == null || ClickedPerson == null)
+            {
+                MessageBox.Show("Nie zaznaczono odpowiedniej ilości węzłów.\n Nie można przenieść poddrzewa!");
+                return;
+            }
+            this.service.MoveSubTree( RightClickedPerson.GetID(), ClickedPerson.GetID());
             RefreshTree();
         }
     }
