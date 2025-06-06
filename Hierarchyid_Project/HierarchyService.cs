@@ -22,15 +22,16 @@ public class HierarchyService : IHierarchyService
         connection.Open();
 
         var command = new SqlCommand(@"
-            INSERT INTO HierarchyTable (Name,Surname,BirthDate,DeathDate, Node)
-            VALUES (@name,@surname,@birthDate,@deathDate, hierarchyid::GetRoot())", connection);
+            INSERT INTO HierarchyTable (Name,Surname,Position,hireDate,terminationDate, Node)
+            VALUES (@name,@surname,@position,@hireDate,@terminationDate, hierarchyid::GetRoot())", connection);
 
         command.Parameters.AddWithValue("@name", person.getName());
         command.Parameters.AddWithValue("@surname", person.GetSurname());
-        command.Parameters.AddWithValue("@birthDate",person.GetBirthDate());
-        var deathDateParam = new SqlParameter("@deathDate", System.Data.SqlDbType.DateTime);
-        deathDateParam.Value = person.GetDeathDate().HasValue ? person.GetDeathDate().Value : DBNull.Value;
-        command.Parameters.Add(deathDateParam);
+        command.Parameters.AddWithValue("@hireDate",person.GetHireDate());
+        command.Parameters.AddWithValue("@position", person.GetPosition());
+        var terminationDateParam = new SqlParameter("@terminationDate", System.Data.SqlDbType.DateTime);
+        terminationDateParam.Value = person.GetTerminationDate().HasValue ? person.GetTerminationDate().Value : DBNull.Value;
+        command.Parameters.Add(terminationDateParam);
         command.ExecuteNonQuery();
     }
     private SqlHierarchyId findPathWithId(int id)
@@ -101,15 +102,16 @@ public class HierarchyService : IHierarchyService
             SqlHierarchyId.Null
         );
         var command = new SqlCommand(@"
-            INSERT INTO HierarchyTable (Name,Surname,BirthDate,DeathDate, Node) 
-            VALUES (@name,@surname,@birthDate,@deathDate, @newNodeId)", connection);
+            INSERT INTO HierarchyTable (Name,Surname,hireDate,terminationDate,Position, Node) 
+            VALUES (@name,@surname,@hireDate,@terminationDate,@position, @newNodeId)", connection);
 
         command.Parameters.AddWithValue("@name", child.getName());
         command.Parameters.AddWithValue("@surname", child.GetSurname());
-        command.Parameters.AddWithValue("@birthDate", child.GetBirthDate());
-        var deathDateParam = new SqlParameter("@deathDate", System.Data.SqlDbType.DateTime);
-        deathDateParam.Value = child.GetDeathDate().HasValue ? child.GetDeathDate().Value : DBNull.Value;
-        command.Parameters.Add(deathDateParam);
+        command.Parameters.AddWithValue("@hireDate", child.GetHireDate());
+        command.Parameters.AddWithValue("@position", child.GetPosition());
+        var terminationDateParam = new SqlParameter("@terminationDate", System.Data.SqlDbType.DateTime);
+        terminationDateParam.Value = child.GetTerminationDate().HasValue ? child.GetTerminationDate().Value : DBNull.Value;
+        command.Parameters.Add(terminationDateParam);
         var nodeParam = new SqlParameter("@newNodeId", newNodeId)
         {
             UdtTypeName = "HierarchyId"
@@ -301,13 +303,14 @@ public class HierarchyService : IHierarchyService
              Id,
              Name,
              Surname,
-             BirthDate,
-             DeathDate,
+             Position,
+             hireDate,
+             terminationDate,
              Node.ToString() AS HierarchyPath,
              Node.GetLevel() AS Level,
              Node.GetAncestor(1).ToString() AS ParentNode
              FROM HierarchyTable
-             ORDER BY Node",connection);
+             ORDER BY Node", connection);
 
         int l = 0;
         using (SqlDataReader reader = command.ExecuteReader()) 
@@ -317,19 +320,20 @@ public class HierarchyService : IHierarchyService
                 int id = reader.GetInt32(reader.GetOrdinal("Id"));
                 string Name = reader.GetString(reader.GetOrdinal("Name"));
                 string Surname = reader.GetString(reader.GetOrdinal("Surname"));
-                DateTime? BirthDate = reader.GetDateTime(reader.GetOrdinal("BirthDate"));
-                DateTime? deathDate = null;
-                if (!reader.IsDBNull(reader.GetOrdinal("DeathDate")))
+                string position = reader.GetString(reader.GetOrdinal("Position"));
+                DateTime? hireDate = reader.GetDateTime(reader.GetOrdinal("hireDate"));
+                DateTime? terminationDate = null;
+                if (!reader.IsDBNull(reader.GetOrdinal("terminationDate")))
                 {
-                    deathDate = reader.GetDateTime(reader.GetOrdinal("DeathDate"));
+                    terminationDate = reader.GetDateTime(reader.GetOrdinal("terminationDate"));
                 }
                 string path = reader.GetString(reader.GetOrdinal("HierarchyPath"));
                 int level = reader.GetInt16(reader.GetOrdinal("Level"));
                 if (l == 0)
-                    tree[path] = new Person(Name,Surname,BirthDate,deathDate, id, level);
+                    tree[path] = new Person(Name,Surname,hireDate,terminationDate, id, level,position);
                 else
                 {
-                    Person person = new Person(Name, Surname, BirthDate, deathDate, id, level);
+                    Person person = new Person(Name, Surname, hireDate, terminationDate, id, level,position);
                     tree[path[..^2]].addChild(person);
                     tree[path] = person;
                 }

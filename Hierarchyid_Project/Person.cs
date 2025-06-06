@@ -7,8 +7,9 @@ public class Person
 {
     private string name;
     private string surname;
-    private DateTime? birthDate;
-    private DateTime? deathDate;
+    private DateTime? hireDate;
+    private DateTime? terminationDate;
+    private string position;
     private int id;
     private int level;
     private List<Person> childrens = new List<Person>();
@@ -20,21 +21,23 @@ public class Person
         this.name = name;
         this.surname = surname;
     }
-    public Person(string Name,string Surname,DateTime? BirthDate,DateTime? DeathDate)
+    public Person(string Name,string Surname,DateTime? hireDate,DateTime? terminationDate,string position)
     {
         this.name=Name;
         this.surname=Surname;
-        this.birthDate = BirthDate;
-        this.deathDate = DeathDate;
+        this.hireDate = hireDate;
+        this.terminationDate = terminationDate;
+        this.position= position;
     }
-    public Person(string Name, string Surname, DateTime? BirthDate, DateTime? DeathDate, int id, int level)
+    public Person(string Name, string Surname, DateTime? hireDate, DateTime? terminationDate, int id, int level,string position)
     {
         this.name = Name;
         this.surname = Surname;
-        this.birthDate = BirthDate;
-        this.deathDate = DeathDate;
+        this.hireDate = hireDate;
+        this.terminationDate = terminationDate;
         this.id = id;
         this.level = level;
+        this.position = position;
     }
     public override string ToString()
     {
@@ -52,17 +55,25 @@ public class Person
     {
         return surname;
     }
-    public DateTime? GetBirthDate()
+    public DateTime? GetHireDate()
     {
-        return birthDate;
+        return hireDate;
     }
-    public DateTime? GetDeathDate()
+    public DateTime? GetTerminationDate()
     {
-        return deathDate;
+        return terminationDate;
     }
     public int GetID()
     {
         return id;
+    }
+    public void SetID(int id)
+    {
+        this.id = id;
+    }
+    public string GetPosition()
+    {
+        return position;
     }
 }
 

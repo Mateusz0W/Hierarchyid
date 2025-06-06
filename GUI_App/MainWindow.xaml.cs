@@ -18,8 +18,8 @@ namespace FamilyTreeGraph
 {
     public partial class MainWindow : Window
     {
-        private const double BoxWidth = 100;
-        private const double BoxHeight = 60;
+        private const double BoxWidth = 110;
+        private const double BoxHeight = 80;
         private const double HorizontalSpacing = 30;
         private const double VerticalSpacing = 80;
         private Person ClickedPerson;
@@ -87,7 +87,7 @@ namespace FamilyTreeGraph
                 Background = Brushes.LightYellow,
                 Child = new TextBlock
                 {
-                    Text = $"{person.getName()} {person.GetSurname()} \n ur. {person.GetBirthDate()?.ToShortDateString()}\nsr. {person.GetDeathDate()?.ToShortDateString()}",
+                    Text = $"{person.getName()} {person.GetSurname()}\nstanowisko: {person.GetPosition()} \n start. {person.GetHireDate()?.ToShortDateString()}\nkoniec. {person.GetTerminationDate()?.ToShortDateString()}",
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                     //TextWrapping = TextWrapping.Wrap
@@ -116,17 +116,27 @@ namespace FamilyTreeGraph
         }
         private void AddPerson_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrEmpty(NameTextBox.Text) || string.IsNullOrEmpty(SurnameTextBox.Text) || BirthDatePicker.SelectedDate == null || ClickedPerson == null)
-            {
-                MessageBox.Show("Nie wszystkie pola  zostały wypełnione lub  nie zaznaczono rodzica.\nNie można dodać osoby!");
-                return;
-            }
-            Person person = new Person(NameTextBox.Text.Trim(), SurnameTextBox.Text.Trim(), BirthDatePicker.SelectedDate,DeathDatePicker.SelectedDate);
+            Person person = new Person(NameTextBox.Text.Trim(), SurnameTextBox.Text.Trim(), BirthDatePicker.SelectedDate,DeathDatePicker.SelectedDate,PositionTextBox.Text.Trim());
             Dictionary<string, Person> tree = service.readTree();
             if (tree.Count == 0)
+            {
+                if (string.IsNullOrEmpty(NameTextBox.Text) || string.IsNullOrEmpty(SurnameTextBox.Text) || BirthDatePicker.SelectedDate == null || string.IsNullOrEmpty(PositionTextBox.Text))
+                {
+                    MessageBox.Show("Nie wszystkie pola  zostały wypełnione.\nNie można dodać osoby!");
+                    return;
+                }
                 this.service.CreateRoot(person);
+            }
             else
+            {
+                if (string.IsNullOrEmpty(NameTextBox.Text) || string.IsNullOrEmpty(SurnameTextBox.Text) || BirthDatePicker.SelectedDate == null || ClickedPerson == null || string.IsNullOrEmpty(PositionTextBox.Text))
+                {
+                    MessageBox.Show("Nie wszystkie pola  zostały wypełnione lub  nie zaznaczono rodzica.\nNie można dodać osoby!");
+                    return;
+                }
+
                 this.service.AddNode(ClickedPerson, person);
+            }
             // redraw tree
             RefreshTree();
         }
