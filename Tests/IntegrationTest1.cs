@@ -11,7 +11,7 @@ namespace Tests.Tests
         public void TestCreateRoot()
         {
             var service = new HierarchyService(_testConnectionString);
-            var person = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null);
+            var person = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null,"Prezes");
 
             service.CreateRoot(person);
 
@@ -30,8 +30,8 @@ namespace Tests.Tests
         public void TestAddNode()
         {
             var service = new HierarchyService(_testConnectionString);
-            var parent = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null);
-            var child = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1));
+            var parent = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null, "Prezes");
+            var child = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1),"Pracownik");
 
             service.CreateRoot(parent);
 
@@ -56,19 +56,19 @@ namespace Tests.Tests
         public void TestRemoveSubtree()
         {
             var service = new HierarchyService(_testConnectionString);
-            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null);
+            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null, "Prezes");
 
             service.CreateRoot(root);
             int id = FindID("Janusz");
             root.SetID(id);
 
-            var parent = new Person("Micha³", "Nowak", new DateTime(1980, 2, 2), null);
+            var parent = new Person("Micha³", "Nowak", new DateTime(1980, 2, 2), null,"Manager");
 
             service.AddNode(root, parent);
             id = FindID("Micha³");
             parent.SetID(id);
 
-            var child = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1),id,1);
+            var child = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1),id,1,"Pracownik");
 
             service.AddNode(parent, child);
             service.removeSubtree(parent);
@@ -87,13 +87,13 @@ namespace Tests.Tests
         public void TestRemoveNode()
         {
             var service = new HierarchyService(_testConnectionString);
-            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null);
+            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null, "Prezes");
 
             service.CreateRoot(root);
             int id = FindID("Janusz");
             root.SetID(id);
 
-            var child = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1), id, 1);
+            var child = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1), "Pracownik");
 
             service.AddNode(root, child);
             id = FindID("Adam");
@@ -114,7 +114,7 @@ namespace Tests.Tests
         public void TestNumberOfNodes()
         {
             var service = new HierarchyService(_testConnectionString);
-            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null);
+            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null, "Prezes");
 
             service.CreateRoot(root);
 
@@ -127,7 +127,7 @@ namespace Tests.Tests
         public void TestNumberOfLevels()
         {
             var service = new HierarchyService(_testConnectionString);
-            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null);
+            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null, "Prezes");
 
             service.CreateRoot(root);
 
@@ -140,19 +140,19 @@ namespace Tests.Tests
         public void TestNumberOfDescendants()
         {
             var service = new HierarchyService(_testConnectionString);
-            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null);
+            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null, "Prezes");
 
             service.CreateRoot(root);
             int id = FindID("Janusz");
             root.SetID(id);
 
-            var parent = new Person("Micha³", "Nowak", new DateTime(1980, 2, 2), null);
+            var parent = new Person("Micha³", "Nowak", new DateTime(1980, 2, 2), null,"Manager");
 
             service.AddNode(root, parent);
             id = FindID("Micha³");
             parent.SetID(id);
 
-            var child = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1), id, 1);
+            var child = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1), id, 1, "Pracownik");
 
             service.AddNode(parent, child);
 
@@ -166,26 +166,54 @@ namespace Tests.Tests
         public void TestMoveSubtree()
         {
             var service = new HierarchyService(_testConnectionString);
-            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null);
+            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null, "Prezes");
 
             service.CreateRoot(root);
             int id = FindID("Janusz");
             root.SetID(id);
 
-            var child1 = new Person("Micha³", "Nowak", new DateTime(1980, 2, 2), null);
+            var child1 = new Person("Micha³", "Nowak", new DateTime(1980, 2, 2), null,"Manager");
 
             service.AddNode(root, child1);
             id = FindID("Micha³");
             child1.SetID(id);
 
-            var child2 = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1), id, 1);
+            var child2 = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1), id, 1, "Pracownik");
 
             service.AddNode(child1, child2);
             id = FindID("Adam");
-            child1.SetID(id);
+            child2.SetID(id);
 
             service.MoveSubTree(child1.GetID(), child2.GetID());
             int num = service.numberOfLevels();
+
+            ClearTable();
+            Assert.Equal(3, num);
+        }
+        [Fact]
+        public void TestReadTree()
+        {
+            var service = new HierarchyService(_testConnectionString);
+            var root = new Person("Janusz", "Nowak", new DateTime(1980, 1, 1), null, "Prezes");
+
+            service.CreateRoot(root);
+            int id = FindID("Janusz");
+            root.SetID(id);
+
+            var child1 = new Person("Micha³", "Nowak", new DateTime(1980, 2, 2), null, "Manager");
+
+            service.AddNode(root, child1);
+            id = FindID("Micha³");
+            child1.SetID(id);
+
+            var child2 = new Person("Adam", "Nowak", new DateTime(1980, 1, 1), new DateTime(2000, 1, 1),"Pracownik");
+
+            service.AddNode(child1, child2);
+            id = FindID("Adam");
+            child2.SetID(id);
+
+            Dictionary<string, Person> tree = service.readTree();
+            int num = tree.Count;
 
             ClearTable();
             Assert.Equal(3, num);
@@ -208,6 +236,7 @@ namespace Tests.Tests
             int id = Convert.ToInt32(result);
             return id;
         }
+        
 
     }
 }
