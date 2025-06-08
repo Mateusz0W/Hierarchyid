@@ -41,7 +41,7 @@ namespace FamilyTreeGraph
             }
         }
 
-        // Rekursyjne rysowanie drzewa
+       
         private double DrawTree(Person person, double x, double y, out double centerX)
         {
             NumOfNodes.Text = $"{this.service.numberOfNodes()}";
@@ -137,7 +137,7 @@ namespace FamilyTreeGraph
 
                 this.service.AddNode(ClickedPerson, person);
             }
-            // redraw tree
+           
             RefreshTree();
         }
         private void PersonBox_Click(object sender, MouseButtonEventArgs e)
@@ -152,7 +152,7 @@ namespace FamilyTreeGraph
                     }
                     border.Background = Brushes.LightBlue;
                     SelectedBorder = border;
-                    // Przykład działania: pokazanie danych osoby
+                  
                     this.ClickedPerson = person;
                     NumOfDescendants.Text = $"{this.service.numberOfDescendants(ClickedPerson.GetID())}";
                 }

@@ -154,7 +154,6 @@ public class HierarchyService : IHierarchyService
         using var connection = new SqlConnection(_connectionString);
         connection.Open();
 
-        // 1. Pobierz Node do usunięcia i jego rodzica
         var getNodesCommand = new SqlCommand(@"
         DECLARE @nodeToDelete hierarchyid;
         DECLARE @parentNode hierarchyid;
@@ -200,10 +199,10 @@ public class HierarchyService : IHierarchyService
             }
         }
 
-        // 3. Dla każdego dziecka wykonaj reparenting
+       
         foreach (var (childId, childNode) in children)
         {
-            // Znajdź nową pozycję dla dziecka (pod rodzicem usuniętego węzła)
+           
             var getLastSiblingCmd = new SqlCommand(@"
             SELECT MAX(Node) 
             FROM HierarchyTable 
@@ -215,10 +214,10 @@ public class HierarchyService : IHierarchyService
             object result = getLastSiblingCmd.ExecuteScalar();
             SqlHierarchyId lastSibling = result == DBNull.Value ? SqlHierarchyId.Null : (SqlHierarchyId)result;
 
-            // Wygeneruj nową ścieżkę dla dziecka
+          
             var newChildPath = parentNode.GetDescendant(lastSibling, SqlHierarchyId.Null);
 
-            // Przenieś całe poddrzewo dziecka
+            
             var updateCmd = new SqlCommand(@"
             UPDATE HierarchyTable
             SET Node = Node.GetReparentedValue(@oldRoot, @newRoot)
@@ -231,7 +230,7 @@ public class HierarchyService : IHierarchyService
             updateCmd.ExecuteNonQuery();
         }
 
-        // 4. Usuń wybrany węzeł
+        
         var deleteCommand = new SqlCommand(@"
         DELETE FROM HierarchyTable
         WHERE Node = @nodeToDelete;", connection);
