@@ -193,6 +193,13 @@ namespace FamilyTreeGraph
             ClickedPerson = null;
             SelectedBorder = null;
             Dictionary<string, Person> tree = service.readTree();
+            if (!tree.Any())
+            {
+                NumOfDescendants.Text = "0";
+                NumOfNodes.Text = "0";
+                NumOfLevels.Text = "0";
+                return;
+            }
             Person root = tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
             DrawTree(root, 0, 20, out _);
         }
