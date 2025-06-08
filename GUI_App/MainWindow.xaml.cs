@@ -18,8 +18,8 @@ namespace FamilyTreeGraph
 {
     public partial class MainWindow : Window
     {
-        private const double BoxWidth = 110;
-        private const double BoxHeight = 80;
+        private const double BoxWidth = 140;
+        private const double BoxHeight = 90;
         private const double HorizontalSpacing = 30;
         private const double VerticalSpacing = 80;
         private Person ClickedPerson;
@@ -179,13 +179,22 @@ namespace FamilyTreeGraph
         }
         private void DeletePerson_Click(object sender, RoutedEventArgs e)
         {
+            Dictionary<string, Person> tree = service.readTree();
+            Person root=tree.Values.First(p => !tree.Values.Any(x => x.getChildrens().Contains(p)));
             if (ClickedPerson == null)
             {
                 MessageBox.Show("Nie wybrano węzła do usunięca.\n Nie można usunąć węzła!");
                 return;
             }
-            this.service.RemoveNode(ClickedPerson);
+            else if (ClickedPerson.GetID() == root.GetID())
+            {
+                this.service.removeSubtree(root);
+            }
+            else
+                this.service.RemoveNode(ClickedPerson);
             RefreshTree();
+
+
         }
         private void RefreshTree()
         {
